@@ -1,0 +1,151 @@
+openapi: 3.0.1
+info:
+  title: Panel Control API
+  description: API for externally controlling hardware panel elements on Blackmagic Design products.
+  version: 1.1.0
+servers:
+- url: /control/api/v1
+tags:
+  - name: Panel
+    description: Panel Control API for external hardware control
+paths:
+  /panel/devices:
+    get:
+      tags:
+      - Panel
+      summary: Get list of all available hardware panel controls.
+      description: Returns an array of all hardware panel controls that can be triggered externally, including their current state and availability.
+      responses:
+        200:
+          description: List of panel devices.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PanelDevice'
+              examples:
+                FunctionButtons:
+                  value:
+                    - name: "f1"
+                      type: "button"
+                      enabled: true
+                    - name: "f2"
+                      type: "button"
+                      enabled: true
+                    - name: "f3"
+                      type: "button"
+                      enabled: false
+                    - name: "record"
+                      type: "button"
+                      enabled: true
+        500:
+          description: Internal server error.
+  /panel/devices/{name}/state:
+    get:
+      tags:
+      - Panel
+      summary: Get specific hardware control state.
+      description: Returns the current state of a specific hardware panel control by name.
+      parameters:
+      - name: name
+        in: path
+        description: Name of the hardware panel control. Must match pattern [a-zA-Z0-9-]+
+        required: true
+        schema:
+          type: string
+          pattern: '[a-zA-Z0-9-]+'
+          example: "f1"
+      responses:
+        200:
+          description: Device state.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PanelDevice'
+        404:
+          description: Device not found.
+        500:
+          description: Internal server error.
+    put:
+      tags:
+      - Panel
+      summary: Inject hardware control action.
+      description: |
+        Inject an action for a specific hardware panel control. Currently supports button press actions.
+        
+        For hardware buttons:
+        - Default hold duration is 100ms if not specified
+        - Maximum hold duration is 5000ms
+        - To release a button immediately, use holdDuration of 0
+        - To keep holding a button, send a new request before the current hold expires (this will overwrite the previous timer)
+      parameters:
+      - name: name
+        in: path
+        description: Name of the hardware panel control. Must match pattern [a-zA-Z0-9-]+
+        required: true
+        schema:
+          type: string
+          pattern: '[a-zA-Z0-9-]+'
+          example: "f1"
+      requestBody:
+        description: Hardware control action to perform.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceAction'
+      responses:
+        204:
+          description: Action performed successfully.
+        400:
+          description: Invalid action, device is disabled, or hold duration exceeds maximum limit.
+        404:
+          description: Device not found.
+        500:
+          description: Internal server error.
+components:
+  schemas:
+    PanelDevice:
+      type: object
+      required:
+        - name
+        - type
+        - enabled
+      properties:
+        name:
+          type: string
+          description: Unique name of the hardware panel control.
+          example: "f1"
+        type:
+          type: string
+          description: Type of hardware control. Currently only "button" is supported.
+          enum:
+            - button
+          example: "button"
+        enabled:
+          type: boolean
+          description: Whether the hardware control is currently enabled and can accept actions.
+          example: true
+    DeviceAction:
+      type: object
+      required:
+        - action
+      properties:
+        action:
+          type: string
+          description: Action to perform on the hardware control. Currently only "press" is supported for buttons.
+          enum:
+            - press
+          example: "press"
+        holdDuration:
+          type: integer
+          description: |
+            Optional duration in milliseconds to hold the button pressed. 
+            - Minimum: 0 (immediate release)
+            - Maximum: 5000 (5 seconds)
+            - Default: 100 (if not specified)
+            - To keep holding beyond 5 seconds, send a new request before the current one expires
+          minimum: 0
+          maximum: 5000
+          example: 250
