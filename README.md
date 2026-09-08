@@ -6,6 +6,3 @@ Model: Blackmagic PYXIS 6K
 Format: OpenAPI/Swagger (.yaml)
 
 Capabilities: Full REST API schema for camera control, status monitoring, and configuration.
-
-Project Goals
-The objective is to expand this library as additional API schemas become available for different Blackmagic models. Contributions and findings for other cinema or broadcast cameras are welcome.
